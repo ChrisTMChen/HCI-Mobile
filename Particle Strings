@@ -1,0 +1,94 @@
+// This #include statement was automatically added by the Particle IDE.
+#include <Adafruit_SSD1306.h>
+
+//Use I2C with OLED RESET pin D0
+#define OLED_RESET D0
+Adafruit_SSD1306 oled(OLED_RESET);
+
+unsigned long previousMillis;
+unsigned long interval = 30000;
+
+int button = D2;
+int WHT_LED = D3;
+int RED_LED = D4;
+int BLU_LED = D5;
+int rollUp = D6;
+int rollDn = D7;
+
+int Index = 0;
+const int messageNum = 12;
+volatile int state = LOW;
+
+String messageString[messageNum] = {"Where are you?", "On my way", "ETA 5", "ETA 15", "SOS", "Need help", "Bring water", "Bring supplies", "Yes", "No", "Maybe", "I don't know"};
+
+
+void setup() {
+  // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
+  oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3D (for the 128x64)
+  // init done
+  pinMode(button, INPUT_PULLUP);
+  pinMode(WHT_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+  pinMode(BLU_LED, OUTPUT);
+  digitalWrite(WHT_LED, LOW);
+  digitalWrite(RED_LED, LOW);
+  digitalWrite(BLU_LED, LOW);
+
+  pinMode(D6, OUTPUT);
+  pinMode(D7, OUTPUT);
+  attachInterrupt(rollUp, upTrigger, RISING);
+  attachInterrupt(rollDn, dnTrigger, RISING);
+}
+
+
+void loop() {
+  oled.clearDisplay();             // clears all text on the sceen
+  delay(200);
+  oled.setTextSize(2);
+  oled.setTextColor(WHITE);
+  oled.setCursor(0, 0);
+  oled.print(messageString[Index]);
+  oled.setTextColor(BLACK, WHITE); // 'inverted' text
+  oled.display();
+
+  if (digitalRead(button) == 0) {
+    Particle.publish(messageString[Index]);
+    oled.clearDisplay();
+    oled.setCursor(0, 16);
+    oled.print("Sending");
+    oled.display();
+    digitalWrite(WHT_LED, LOW);
+    digitalWrite(BLU_LED, HIGH);
+    delay(500);
+    digitalWrite(BLU_LED, LOW);
+    delay(500);
+    digitalWrite(BLU_LED, HIGH);
+    delay(500);
+    digitalWrite(BLU_LED, LOW);
+    delay(500);
+    oled.clearDisplay();
+    oled.setCursor(0, 16);
+    oled.print("Sent");
+    oled.display();
+    digitalWrite(BLU_LED, HIGH);
+    delay(3000);
+    digitalWrite(BLU_LED, LOW);
+    digitalWrite(WHT_LED, HIGH);
+  }
+
+  digitalWrite(rollUp, state);
+  digitalWrite(rollDn, state);
+
+  digitalWrite(WHT_LED, 1);
+}
+
+void upTrigger() {
+  Serial.println("UP");
+  Index++;
+  if (Index >= messageNum) Index = 0;
+}
+void dnTrigger() {
+  Serial.println("DOWN");
+  Index--;
+  if (Index < 0) Index = messageNum - 1;
+}
